@@ -8,7 +8,7 @@ import librosa
 import librosa
 
 import torch
-import torchaudio
+# import torchaudio
 
 from funasr.fileio.read_text import read_2column_text
 
@@ -128,10 +128,21 @@ class SoundScpReader(collections.abc.Mapping):
         if self.speed_perturb is not None:
             speed = random.choice(self.speed_perturb)
             if speed != 1.0:
-                array, _ = torchaudio.sox_effects.apply_effects_tensor(
-                    torch.tensor(array).view(1, -1), rate,
-                    [['speed', str(speed)], ['rate', str(rate)]])
-                array = array.view(-1).numpy()
+                try:
+                    import torchaudio
+                    array, _ = torchaudio.sox_effects.apply_effects_tensor(
+                        torch.tensor(array).view(1, -1), rate,
+                        [['speed', str(speed)], ['rate', str(rate)]])
+                    array = array.view(-1).numpy()
+                except:
+                    # 将音频转换为 NumPy 数组
+                    array = array.numpy()
+
+                    # 使用 librosa 进行时间拉伸
+                    array = librosa.effects.time_stretch(array, rate * speed)
+
+                    # 将时间拉伸后的音频转换为 PyTorch Tensor
+                    array = torch.tensor(array)
 
         if array.ndim==2:
             array=array.transpose((1, 0))

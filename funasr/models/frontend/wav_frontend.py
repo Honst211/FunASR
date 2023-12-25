@@ -4,7 +4,8 @@ from typing import Tuple
 
 import numpy as np
 import torch
-import torchaudio.compliance.kaldi as kaldi
+# import torchaudio.compliance.kaldi as kaldi
+import funasr.torchaudio_replace.kaldi as kaldi
 from torch.nn.utils.rnn import pad_sequence
 
 import funasr.models.frontend.eend_ola_feature as eend_ola_feature

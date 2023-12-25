@@ -13,9 +13,9 @@ from typing import List
 import kaldiio
 import numpy as np
 import torch
-import torchaudio
+# import torchaudio
 # import librosa
-import librosa
+# import librosa
 from torch.utils.data.dataset import IterableDataset
 import os.path
 
@@ -69,8 +69,10 @@ def load_pcm(input):
 
 def load_wav(input):
     try:
+        import torchaudio
         return torchaudio.load(input)[0].numpy()
     except:
+        import librosa
         # waveform, _ = librosa.load(input, dtype='float32')
         waveform, _ = librosa.load(input, dtype='float32')
         if waveform.ndim == 2:
@@ -200,11 +202,17 @@ class IterableESPnetDataset(IterableDataset):
                     audio_fs = self.fs["audio_fs"]
                     model_fs = self.fs["model_fs"]
                     if audio_fs is not None and model_fs is not None:
-                        array = torch.from_numpy(array)
-                        array = array.unsqueeze(0)
-                        array = torchaudio.transforms.Resample(orig_freq=audio_fs,
-                                                       new_freq=model_fs)(array)
-                        array = array.squeeze(0).numpy()
+                        try:
+                            import torchaudio
+                            array = torch.from_numpy(array)
+                            array = array.unsqueeze(0)
+                            array = torchaudio.transforms.Resample(orig_freq=audio_fs,
+                                                           new_freq=model_fs)(array)
+                            array = array.squeeze(0).numpy()
+                        except:
+                            import librosa
+                            # 使用librosa的重采样方法
+                            array = librosa.resample(array, orig_sr=audio_fs, target_sr=model_fs)
 
                 data[name] = array
 
@@ -247,10 +255,15 @@ class IterableESPnetDataset(IterableDataset):
                     audio_fs = self.fs["audio_fs"]
                     model_fs = self.fs["model_fs"]
                     if audio_fs is not None and model_fs is not None:
-                        array = torch.from_numpy(array)
-                        array = torchaudio.transforms.Resample(orig_freq=audio_fs,
-                                                               new_freq=model_fs)(array)
-                        array = array.numpy()
+                        try:
+                            import torchaudio
+                            array = torch.from_numpy(array)
+                            array = torchaudio.transforms.Resample(orig_freq=audio_fs,
+                                                                   new_freq=model_fs)(array)
+                            array = array.numpy()
+                        except:
+                            import librosa
+                            array = librosa.resample(array, orig_sr=audio_fs, target_sr=model_fs)
                         
                 if _type == "sound":
                     if self.mc:
@@ -353,9 +366,15 @@ class IterableESPnetDataset(IterableDataset):
                         model_fs = self.fs["model_fs"]
                         if audio_fs is not None and model_fs is not None:
                             array = torch.from_numpy(array)
-                            array = torchaudio.transforms.Resample(orig_freq=audio_fs,
-                                                                   new_freq=model_fs)(array)
-                            array = array.numpy()
+                            try:
+                                import torchaudio
+                                array = torchaudio.transforms.Resample(orig_freq=audio_fs,
+                                                                       new_freq=model_fs)(array)
+                                array = array.numpy()
+                            except:
+                                import librosa
+                                array = librosa.resample(array, orig_sr=audio_fs, target_sr=model_fs)
+
                     if _type == "sound":
                         if self.mc:
                             data[name] = array.transpose((1, 0))

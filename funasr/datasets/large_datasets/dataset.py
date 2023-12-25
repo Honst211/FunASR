@@ -5,7 +5,10 @@ from functools import partial
 
 import torch
 import torch.distributed as dist
-import torchaudio
+try:
+    import torchaudio
+except:
+    torchaudio = None
 import numpy as np
 # import librosa
 import librosa
@@ -126,28 +129,43 @@ class AudioDataset(IterableDataset):
                             sample_dict["key"] = key
                     elif data_type == "sound":
                         key, path = item.strip().split()
-                        try:
-                            waveform, sampling_rate = torchaudio.load(path)
-                        except:
-                            # waveform, sampling_rate = librosa.load(path, dtype='float32')
+                        if torchaudio:
+                            try:
+                                waveform, sampling_rate = torchaudio.load(path)
+                            except:
+                                # waveform, sampling_rate = librosa.load(path, dtype='float32')
+                                waveform, sampling_rate = librosa.load(path, dtype='float32')
+                                if waveform.ndim == 2:
+                                    waveform = waveform[:, 0]
+                                waveform = np.expand_dims(waveform, axis=0)
+                                waveform = torch.tensor(waveform)
+                            if self.frontend_conf is not None:
+                                if sampling_rate != self.frontend_conf["fs"]:
+                                    waveform = torchaudio.transforms.Resample(orig_freq=sampling_rate,
+                                                                              new_freq=self.frontend_conf["fs"])(waveform)
+                                    sampling_rate = self.frontend_conf["fs"]
+                            waveform = waveform.numpy()
+                            mat = waveform[0]
+                            if self.speed_perturb is not None:
+                                speed = random.choice(self.speed_perturb)
+                                if speed != 1.0:
+                                    mat, _ = torchaudio.sox_effects.apply_effects_tensor(
+                                        torch.tensor(mat).view(1, -1), sampling_rate, [['speed', str(speed)], ['rate', str(sampling_rate)]])
+                                    mat = mat.view(-1).numpy()
+                        else:
                             waveform, sampling_rate = librosa.load(path, dtype='float32')
-                            if waveform.ndim == 2:
-                                waveform = waveform[:, 0]
-                            waveform = np.expand_dims(waveform, axis=0)
-                            waveform = torch.tensor(waveform)
-                        if self.frontend_conf is not None:
-                            if sampling_rate != self.frontend_conf["fs"]:
-                                waveform = torchaudio.transforms.Resample(orig_freq=sampling_rate,
-                                                                          new_freq=self.frontend_conf["fs"])(waveform)
-                                sampling_rate = self.frontend_conf["fs"]
-                        waveform = waveform.numpy()
-                        mat = waveform[0]
-                        if self.speed_perturb is not None:
-                            speed = random.choice(self.speed_perturb)
-                            if speed != 1.0:
-                                mat, _ = torchaudio.sox_effects.apply_effects_tensor(
-                                    torch.tensor(mat).view(1, -1), sampling_rate, [['speed', str(speed)], ['rate', str(sampling_rate)]])
-                                mat = mat.view(-1).numpy()
+                            if self.frontend_conf is not None:
+                                if sampling_rate != self.frontend_conf["fs"]:
+                                    waveform = librosa.resample(waveform.numpy(), orig_sr=sampling_rate,
+                                                                target_sr=self.frontend_conf["fs"])
+                                    sampling_rate = self.frontend_conf["fs"]
+                            mat = waveform[0]
+                            if self.speed_perturb is not None:
+                                speed = random.choice(self.speed_perturb)
+                                if speed != 1.0:
+                                    mat = librosa.effects.time_stretch(mat, speed)
+                                    mat = mat.view(-1).numpy()
+
                         sample_dict[data_name] = mat
                         sample_dict["sampling_rate"] = sampling_rate
                         if data_name == "speech":

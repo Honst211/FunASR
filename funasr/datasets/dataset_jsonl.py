@@ -3,8 +3,8 @@ import json
 import torch.distributed as dist
 import numpy as np
 import kaldiio
-import librosa
-import torchaudio
+# import librosa
+# import torchaudio
 import time
 
 def load_audio(audio_path: str, fs: int=16000):
@@ -17,8 +17,12 @@ def load_audio(audio_path: str, fs: int=16000):
 		if ".ark:" in audio_path:
 			audio = kaldiio.load_mat(audio_path)
 		else:
-			# audio, fs = librosa.load(audio_path, sr=fs)
-			audio, fs = torchaudio.load(audio_path)
+			try:
+				import torchaudio
+				audio, fs = torchaudio.load(audio_path)
+			except:
+				import librosa
+				audio, fs = librosa.load(audio_path, sr=fs)
 			audio = audio[0, :]
 	return audio
 

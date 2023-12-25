@@ -10,9 +10,10 @@ import kaldiio
 import librosa
 import numpy as np
 import torch
-import torchaudio
+# import torchaudio
 import librosa
-import torchaudio.compliance.kaldi as kaldi
+# import torchaudio.compliance.kaldi as kaldi
+import funasr.torchaudio_replace.kaldi as kaldi
 
 
 def ndarray_resample(audio_in: np.ndarray,
@@ -29,8 +30,20 @@ def torch_resample(audio_in: torch.Tensor,
                    fs_out: int = 16000) -> torch.Tensor:
     audio_out = audio_in
     if fs_in != fs_out:
-        audio_out = torchaudio.transforms.Resample(orig_freq=fs_in,
-                                                   new_freq=fs_out)(audio_in)
+        try:
+            import torchaudio
+            audio_out = torchaudio.transforms.Resample(orig_freq=fs_in,
+                                                       new_freq=fs_out)(audio_in)
+        except:
+            import librosa
+            audio_in = audio_in.numpy()
+
+            # 使用 librosa 进行重采样
+            audio_out = librosa.resample(audio_in, orig_sr=fs_in, target_sr=fs_out)
+
+            # 将重采样后的音频转换为 PyTorch Tensor
+            audio_out = torch.tensor(audio_out)
+
     return audio_out
 
 
@@ -164,8 +177,10 @@ def compute_fbank(wav_file,
     else:
         # load pcm from wav, and resample
         try:
+            import torchaudio
             waveform, audio_sr = torchaudio.load(wav_file)
         except:
+            import librosa
             waveform, audio_sr = librosa.load(wav_file, dtype='float32')
             if waveform.ndim == 2:
                 waveform = waveform[:, 0]

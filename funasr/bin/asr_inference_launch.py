@@ -19,9 +19,9 @@ from typing import Union
 
 import numpy as np
 import torch
-import torchaudio
+# import torchaudio
 # import librosa
-import librosa
+# import librosa
 import yaml
 
 from funasr.bin.asr_infer import Speech2Text
@@ -1301,8 +1301,10 @@ def inference_paraformer_online(
             raw_inputs = torch.tensor(raw_inputs)
         if data_path_and_name_and_type is not None and data_path_and_name_and_type[2] == "sound":
             try:
+                import torchaudio
                 raw_inputs = torchaudio.load(data_path_and_name_and_type[0])[0][0]
             except:
+                import librosa
                 # raw_inputs = librosa.load(data_path_and_name_and_type[0], dtype='float32')[0]
                 raw_inputs, sr = librosa.load(data_path_and_name_and_type[0], dtype='float32')
                 if raw_inputs.ndim == 2:
